@@ -32,7 +32,9 @@ def load_data(filepath):
     # TODO: Load the CSV using pd.read_csv(filepath)
     # TODO: Print a progress message: f"Loaded {len(df)} records from {filepath}"
     # TODO: Return the DataFrame
-    pass
+    df = pd.read_csv(filepath)
+    print(f"Loaded {len(df)} records from {filepath}")
+    return df
 
 
 def clean_data(df):
@@ -54,7 +56,16 @@ def clean_data(df):
     # TODO: Fill missing 'unit_price' with df['unit_price'].median()
     # TODO: Parse 'date' column: pd.to_datetime(df['date'], errors='coerce')
     # TODO: Print progress and return cleaned DataFrame
-    pass
+    df = df.copy()
+
+    df['quantity'] = df['quantity'].fillna(df['quantity'].median())
+
+    df['unit_price'] = df['unit_price'].fillna(df['unit_price'].median())
+
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+
+    print(f"Cleaned data: {len(df)} records")
+    return df
 
 
 def add_features(df):
@@ -74,7 +85,13 @@ def add_features(df):
     # TODO: df['day_of_week'] = df['date'].dt.day_name()
     #        (requires 'date' to be datetime type — must call after clean_data)
     # TODO: Return the enriched DataFrame
-    pass
+    df = df.copy()
+
+    df['revenue'] = df['quantity'] * df['unit_price']
+
+    df['day_of_week'] = df['date'].dt.day_name()
+
+    return df
 
 
 def generate_summary(df):
@@ -92,7 +109,20 @@ def generate_summary(df):
     """
     # TODO: Compute top category: df.groupby('product_category')['revenue'].sum().idxmax()
     # TODO: Return a dict with the four keys above
-    pass
+    total_revenue = df['revenue'].sum()
+
+    avg_order_value = df['revenue'].mean()
+
+    top_category = df.groupby('product_category')['revenue'].sum().idxmax()
+
+    record_count = len(df)
+
+    return {
+        'total_revenue': total_revenue,
+        'avg_order_value': avg_order_value,
+        'top_category': top_category,
+        'record_count': record_count
+    }
 
 
 def create_visualizations(df, output_dir=OUTPUT_DIR):
@@ -133,7 +163,38 @@ def create_visualizations(df, output_dir=OUTPUT_DIR):
     #   - fig.savefig(f'{output_dir}/avg_order_by_payment.png', ...)
     #   - plt.close(fig)
 
-    pass
+    os.makedirs(output_dir, exist_ok=True)
+    
+    cat_revenue = df.groupby('product_category')['revenue'].sum()
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    cat_revenue.plot(kind='bar', ax=ax, color='skyblue')
+    ax.set_title('Total Revenue by Product Category')
+    ax.set_ylabel('Revenue')
+    
+    fig.savefig(f'{output_dir}/revenue_by_category.png', dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    
+    
+    daily_revenue = df.groupby('date')['revenue'].sum().sort_index()
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    daily_revenue.plot(kind='line', ax=ax, marker='o', color='green')
+    ax.set_title('Daily Revenue Trend')
+    ax.set_ylabel('Revenue')
+    
+    fig.savefig(f'{output_dir}/daily_revenue_trend.png', dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    
+    payment_avg = df.groupby('payment_method')['revenue'].mean()
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    payment_avg.plot(kind='barh', ax=ax, color='orange')
+    ax.set_title('Average Order Value by Payment Method')
+    ax.set_xlabel('Average Revenue')
+    
+    fig.savefig(f'{output_dir}/avg_order_by_payment.png', dpi=150, bbox_inches='tight')
+    plt.close(fig)
 
 
 def main():
@@ -144,7 +205,20 @@ def main():
     # TODO: Call generate_summary(df) and print the results
     # TODO: Call create_visualizations(df)
     # TODO: Print "Pipeline complete."
-    pass
+    raw_df = load_data(DATA_PATH)
+    
+    cleaned_df = clean_data(raw_df)
+    
+    enriched_df = add_features(cleaned_df)
+    
+    summary = generate_summary(enriched_df)
+    print("\n--- Project Summary ---")
+    for key, value in summary.items():
+        print(f"{key}: {value}")
+    
+    create_visualizations(enriched_df, OUTPUT_DIR)
+    
+    print("\nPipeline complete.")
 
 
 if __name__ == "__main__":
